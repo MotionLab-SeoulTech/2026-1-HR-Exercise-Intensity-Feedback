@@ -1,0 +1,1500 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Polar Heart-Rate Zone Logger</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #eaf1f8;
+      color: #111827;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    .app-bg {
+      min-height: 100vh;
+      padding: 12px;
+      background:
+        radial-gradient(circle at top left, rgba(59, 130, 246, 0.12), transparent 35%),
+        #eaf1f8;
+    }
+
+    .app-shell {
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 16px;
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.94);
+      border: 1px solid #d8e2ef;
+      box-shadow: 0 18px 50px rgba(15, 23, 42, 0.12);
+    }
+
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .app-kicker {
+      margin: 0 0 2px;
+      color: #64748b;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 30px;
+      letter-spacing: -0.04em;
+    }
+
+    .connection-pill {
+      padding: 8px 13px;
+      border-radius: 999px;
+      background: #f1f5f9;
+      color: #64748b;
+      font-size: 14px;
+      font-weight: 800;
+      border: 1px solid #d8e2ef;
+    }
+
+    .connection-pill.connected {
+      background: #dcfce7;
+      color: #166534;
+      border-color: #bbf7d0;
+    }
+
+    .error-banner {
+      display: none;
+      margin-bottom: 10px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: #fef2f2;
+      color: #991b1b;
+      border: 1px solid #fecaca;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .metric-card {
+      min-height: 76px;
+      padding: 12px 14px;
+      border-radius: 16px;
+      background: #f8fafc;
+      border: 1px solid #d8e2ef;
+    }
+
+    .metric-label {
+      margin-bottom: 6px;
+      color: #64748b;
+      font-size: 13px;
+      font-weight: 750;
+    }
+
+    .metric-value {
+      color: #111827;
+      font-size: 22px;
+      line-height: 1;
+      font-weight: 900;
+      overflow-wrap: anywhere;
+    }
+
+    .metric-unit {
+      font-size: 15px;
+    }
+
+    .metric-subtext {
+      margin-top: 5px;
+      color: #64748b;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .panel {
+      border: 1px solid #d8e2ef;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.96);
+      padding: 14px;
+    }
+
+    .graph-panel,
+    .logging-panel {
+      margin-bottom: 12px;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .panel-header h2 {
+      margin: 0;
+      color: #111827;
+      font-size: 21px;
+      letter-spacing: -0.03em;
+    }
+
+    .panel-header p {
+      margin: 2px 0 0;
+      color: #64748b;
+      font-size: 13px;
+      line-height: 1.25;
+    }
+
+    .rows-logged {
+      color: #64748b;
+      font-size: 15px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .graph-zone-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 230px;
+      gap: 12px;
+      align-items: stretch;
+    }
+
+    .graph-shell {
+      width: 100%;
+      height: 560px;
+      overflow: hidden;
+      border-radius: 14px;
+      background: #ffffff;
+      border: 1px solid #edf2f7;
+    }
+
+    .graph-shell svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .graph-bg {
+      fill: #ffffff;
+    }
+
+    .graph-axis {
+      stroke: #94a3b8;
+      stroke-width: 2;
+    }
+
+    .graph-grid {
+      stroke: rgba(100, 116, 139, 0.22);
+      stroke-width: 1.5;
+    }
+
+    .graph-label {
+      fill: #475569;
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .graph-axis-title {
+      fill: #334155;
+      font-size: 16px;
+      font-weight: 900;
+    }
+
+    .heart-line {
+      fill: none;
+      stroke: #1d4ed8;
+      stroke-width: 5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .heart-dot {
+      fill: #1d4ed8;
+      stroke: white;
+      stroke-width: 3;
+    }
+
+    .band-low { fill: #e5e7eb; }
+    .band-zone-1 { fill: #bbf7d0; }
+    .band-zone-2 { fill: #d9f99d; }
+    .band-zone-3 { fill: #fef08a; }
+    .band-zone-4 { fill: #fed7aa; }
+    .band-zone-5 { fill: #fecaca; }
+    .band-very-high { fill: #e2b8b8; }
+
+    .graph-placeholder {
+      position: relative;
+      height: 560px;
+      border-radius: 14px;
+      background: #ffffff;
+      overflow: hidden;
+      border: 1px solid #edf2f7;
+    }
+
+    .zone-bg-preview {
+      background:
+        linear-gradient(
+          to top,
+          #e5e7eb 0%,
+          #e5e7eb 14.28%,
+          #bbf7d0 14.28%,
+          #bbf7d0 28.56%,
+          #d9f99d 28.56%,
+          #d9f99d 42.84%,
+          #fef08a 42.84%,
+          #fef08a 57.12%,
+          #fed7aa 57.12%,
+          #fed7aa 71.4%,
+          #fecaca 71.4%,
+          #fecaca 85.68%,
+          #e2b8b8 85.68%,
+          #e2b8b8 100%
+        );
+    }
+
+    .fake-y-axis {
+      position: absolute;
+      left: 96px;
+      top: 8px;
+      bottom: 58px;
+      width: 2px;
+      background: #94a3b8;
+    }
+
+    .fake-x-axis {
+      position: absolute;
+      left: 96px;
+      right: 26px;
+      bottom: 58px;
+      height: 2px;
+      background: #94a3b8;
+    }
+
+    .graph-placeholder p {
+      position: absolute;
+      left: 116px;
+      top: 38px;
+      color: #334155;
+      font-size: 18px;
+      font-weight: 800;
+      max-width: 500px;
+    }
+
+    .right-tools {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .age-card,
+    .zone-panel {
+      border-radius: 16px;
+      background: #f8fafc;
+      border: 1px solid #d8e2ef;
+      padding: 12px;
+    }
+
+    .age-card label span {
+      font-size: 13px;
+    }
+
+    .age-card input {
+      height: 42px;
+      font-size: 16px;
+    }
+
+    .age-result {
+      margin-top: 9px;
+      padding: 10px;
+      border-radius: 12px;
+      background: white;
+      border: 1px solid #e2e8f0;
+    }
+
+    .age-result strong {
+      display: block;
+      font-size: 24px;
+      line-height: 1;
+    }
+
+    .age-result small {
+      display: block;
+      margin-top: 4px;
+      color: #64748b;
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .zone-panel h3 {
+      margin: 0 0 8px;
+      font-size: 15px;
+      letter-spacing: -0.02em;
+    }
+
+    .zone-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .zone-row {
+      display: grid;
+      grid-template-columns: 16px 1fr;
+      gap: 7px;
+      align-items: center;
+    }
+
+    .zone-row strong {
+      display: block;
+      font-size: 12px;
+      line-height: 1.1;
+    }
+
+    .zone-row small {
+      display: block;
+      margin-top: 2px;
+      color: #64748b;
+      font-size: 10.5px;
+      font-weight: 750;
+      line-height: 1.15;
+    }
+
+    .zone-swatch {
+      width: 16px;
+      height: 16px;
+      border-radius: 5px;
+      border: 1px solid rgba(15, 23, 42, 0.12);
+    }
+
+    .zone-swatch.zone-low { background: #e5e7eb; }
+    .zone-swatch.zone-1 { background: #22c55e; }
+    .zone-swatch.zone-2 { background: #84cc16; }
+    .zone-swatch.zone-3 { background: #facc15; }
+    .zone-swatch.zone-4 { background: #f97316; }
+    .zone-swatch.zone-5 { background: #ef4444; }
+    .zone-swatch.zone-very-high { background: #7f1d1d; }
+
+    .logging-panel {
+      padding-bottom: 12px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    label span {
+      display: block;
+      margin-bottom: 5px;
+      color: #334155;
+      font-size: 14px;
+      font-weight: 900;
+    }
+
+    input {
+      width: 100%;
+      height: 46px;
+      padding: 0 14px;
+      border-radius: 13px;
+      border: 1px solid #cbd5e1;
+      background: #ffffff;
+      color: #111827;
+      font-size: 16px;
+      outline: none;
+    }
+
+    input:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    .button-row,
+    .analysis-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .btn,
+    .file-upload-btn {
+      min-height: 46px;
+      padding: 9px 15px;
+      border: 1px solid #cbd5e1;
+      border-radius: 13px;
+      background: white;
+      color: #111827;
+      font-size: 14px;
+      font-weight: 900;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn:hover,
+    .file-upload-btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .btn:disabled {
+      cursor: not-allowed;
+      opacity: 0.45;
+      transform: none;
+    }
+
+    .btn.primary { background: #2563eb; border-color: #2563eb; color: white; }
+    .btn.success { background: #16a34a; border-color: #16a34a; color: white; }
+    .btn.danger { background: #dc2626; border-color: #dc2626; color: white; }
+    .btn.secondary { background: #475569; border-color: #475569; color: white; }
+    .btn.outline,
+    .file-upload-btn { background: white; }
+
+    .file-upload-btn input {
+      display: none;
+    }
+
+    .recording-dot {
+      padding: 7px 12px;
+      border-radius: 999px;
+      background: #f1f5f9;
+      color: #64748b;
+      font-size: 13px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .recording-dot.active {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+
+    .helper-text {
+      margin: 10px 0 0;
+      color: #64748b;
+      font-size: 13px;
+      font-weight: 700;
+      overflow-wrap: anywhere;
+    }
+
+    .compact-text {
+      margin-top: 4px;
+    }
+
+    .analysis-panel {
+      padding-bottom: 14px;
+    }
+
+    .analysis-summary {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 12px 0;
+    }
+
+    .analysis-summary span {
+      padding: 8px 11px;
+      border-radius: 999px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      color: #475569;
+      font-size: 13px;
+      font-weight: 850;
+    }
+
+    .analysis-empty {
+      margin-top: 12px;
+      padding: 18px;
+      border-radius: 14px;
+      background: #f8fafc;
+      border: 1px dashed #cbd5e1;
+      color: #64748b;
+      font-weight: 800;
+    }
+
+    .analysis-table-wrap {
+      margin-top: 12px;
+      overflow-x: auto;
+      border-radius: 14px;
+      border: 1px solid #e2e8f0;
+    }
+
+    .analysis-table {
+      width: 100%;
+      min-width: 940px;
+      border-collapse: collapse;
+      background: white;
+    }
+
+    .analysis-table th {
+      text-align: left;
+      padding: 11px 12px;
+      background: #f8fafc;
+      color: #475569;
+      font-size: 12px;
+      font-weight: 900;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .analysis-table td {
+      padding: 11px 12px;
+      border-bottom: 1px solid #eef2f7;
+      color: #111827;
+      font-size: 13px;
+      font-weight: 750;
+    }
+
+    .analysis-table tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .zone-name-cell {
+      display: inline-grid;
+      grid-template-columns: 16px 1fr;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .zone-name-cell strong {
+      display: block;
+      font-size: 13px;
+    }
+
+    .zone-name-cell small {
+      display: block;
+      color: #64748b;
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    @media (max-width: 1100px) {
+      .metric-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+
+      .graph-zone-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .right-tools {
+        display: grid;
+        grid-template-columns: 220px 1fr;
+      }
+
+      .graph-shell,
+      .graph-placeholder {
+        height: 460px;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .top-bar,
+      .panel-header {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .metric-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .right-tools,
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .btn,
+      .file-upload-btn {
+        flex: 1;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .metric-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .btn,
+      .file-upload-btn {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-bg">
+    <main class="app-shell">
+      <section class="top-bar">
+        <div>
+          <p class="app-kicker">Polar Verity Sense</p>
+          <h1>Heart-rate zone logger</h1>
+        </div>
+        <div id="connectionPill" class="connection-pill">Not connected</div>
+      </section>
+
+      <div id="errorBanner" class="error-banner"></div>
+
+      <section class="metric-grid">
+        <div class="metric-card">
+          <div class="metric-label">Live heart rate</div>
+          <div class="metric-value"><span id="liveHr">--</span><span class="metric-unit"> bpm</span></div>
+          <div id="recordingSubtext" class="metric-subtext">Not recording</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">% max HR</div>
+          <div class="metric-value"><span id="percentHr">--</span><span id="percentUnit" class="metric-unit"></span></div>
+          <div id="currentZone" class="metric-subtext">Age not set</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Estimated max HR</div>
+          <div class="metric-value"><span id="maxHr">--</span><span id="maxHrUnit" class="metric-unit"></span></div>
+          <div class="metric-subtext">220 - age</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Average saved HR</div>
+          <div class="metric-value"><span id="avgSavedHr">--</span><span id="avgSavedHrUnit" class="metric-unit"></span></div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Max saved HR</div>
+          <div class="metric-value"><span id="maxSavedHr">--</span><span id="maxSavedHrUnit" class="metric-unit"></span></div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Saved samples</div>
+          <div id="savedSampleCount" class="metric-value">0</div>
+        </div>
+      </section>
+
+      <section class="panel graph-panel">
+        <div class="panel-header">
+          <div>
+            <h2>Heart rate over time</h2>
+            <p>Graph is scaled as % max heart rate from 20-120%, with equal visual height for each zone.</p>
+          </div>
+          <div id="rowsLoggedTop" class="rows-logged">0 rows logged</div>
+        </div>
+
+        <div class="graph-zone-layout">
+          <div id="graphArea"></div>
+          <aside class="right-tools">
+            <div class="age-card">
+              <label>
+                <span>Age</span>
+                <input id="ageInput" type="number" min="1" max="120" placeholder="e.g. 40" />
+              </label>
+              <div class="age-result">
+                <strong id="ageMaxHr">--</strong>
+                <small>estimated max HR, bpm</small>
+              </div>
+            </div>
+            <div class="zone-panel">
+              <h3>Heart-rate zones</h3>
+              <div id="zoneList" class="zone-list"></div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="panel logging-panel">
+        <div class="panel-header">
+          <div>
+            <h2>Logging and export</h2>
+            <p>Saved files include actual BPM, % max HR, and heart-rate zone.</p>
+          </div>
+          <div id="recordingDot" class="recording-dot">Idle</div>
+        </div>
+
+        <div class="form-grid">
+          <label>
+            <span>Session / participant name</span>
+            <input id="sessionNameInput" placeholder="e.g. P01_walk_trial_01" />
+          </label>
+          <label>
+            <span>CSV file name</span>
+            <input id="fileNameInput" placeholder="polar-verity-hr-session" />
+          </label>
+        </div>
+
+        <div class="button-row">
+          <button id="connectBtn" class="btn primary">Connect sensor</button>
+          <button id="saveToggleBtn" class="btn success" disabled>Start CSV logging</button>
+          <button id="chooseFolderBtn" class="btn outline">Choose save folder</button>
+          <button id="saveCsvBtn" class="btn outline" disabled>Save CSV</button>
+          <button id="saveJsonBtn" class="btn outline" disabled>Save JSON</button>
+          <button id="clearDataBtn" class="btn outline" disabled>Clear saved data</button>
+          <button id="mockBtn" class="btn outline">Mock stream</button>
+        </div>
+
+        <p id="folderText" class="helper-text">No folder selected. Save CSV/JSON will use the browser download flow.</p>
+        <p id="latestTimestampText" class="helper-text compact-text">Latest saved timestamp: --</p>
+      </section>
+
+      <section class="panel analysis-panel">
+        <div class="panel-header">
+          <div>
+            <h2>Data analysis</h2>
+            <p>Analyze zone time, percentage time, average HR, and max HR from the current session or an uploaded CSV.</p>
+          </div>
+          <div id="analysisStatus" class="rows-logged">No analysis</div>
+        </div>
+
+        <div class="analysis-actions">
+          <button id="analyzeCurrentBtn" class="btn primary" disabled>Analyze current saved session</button>
+          <label class="file-upload-btn">
+            Upload saved CSV
+            <input id="csvUploadInput" type="file" accept=".csv,text/csv" />
+          </label>
+          <button id="exportAnalysisBtn" class="btn outline" disabled>Export analysis CSV</button>
+        </div>
+
+        <div id="analysisSummary" class="analysis-summary" style="display:none;"></div>
+        <div id="analysisTableArea" class="analysis-empty">Analyze the current saved session or upload a saved CSV file to view zone summaries.</div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const HEART_RATE_SERVICE = "heart_rate";
+    const HEART_RATE_MEASUREMENT = "heart_rate_measurement";
+    const BATTERY_SERVICE = "battery_service";
+    const BATTERY_LEVEL = "battery_level";
+
+    const ZONES = [
+      { label: "Low", min: 20, max: 50, range: "<50%", className: "zone-low" },
+      { label: "Zone 1 (회복)", min: 50, max: 60, range: "50-60%", className: "zone-1" },
+      { label: "Zone 2 (지방 연소/저강도)", min: 60, max: 70, range: "60-70%", className: "zone-2" },
+      { label: "Zone 3 (유산소/중강도)", min: 70, max: 80, range: "70-80%", className: "zone-3" },
+      { label: "Zone 4 (역치/고강도)", min: 80, max: 90, range: "80-90%", className: "zone-4" },
+      { label: "Zone 5 (최대 부하)", min: 90, max: 100, range: "90-100%", className: "zone-5" },
+      { label: "Very High", min: 100, max: 120, range: ">100%", className: "zone-very-high" },
+    ];
+
+    const state = {
+      status: "Idle",
+      deviceName: "",
+      heartRate: null,
+      battery: null,
+      liveSamples: [],
+      savedSamples: [],
+      isStreaming: false,
+      isSaving: false,
+      age: "",
+      sessionName: "",
+      fileName: `polar-verity-hr-${new Date().toISOString().slice(0, 19).replaceAll(":", "-")}`,
+      saveFolderName: "",
+      analysis: null,
+      analysisSource: "",
+      device: null,
+      characteristic: null,
+      streamStartTime: null,
+      saveStartTime: null,
+      directoryHandle: null,
+      mockInterval: null,
+    };
+
+    const els = {
+      connectionPill: document.getElementById("connectionPill"),
+      errorBanner: document.getElementById("errorBanner"),
+      liveHr: document.getElementById("liveHr"),
+      recordingSubtext: document.getElementById("recordingSubtext"),
+      percentHr: document.getElementById("percentHr"),
+      percentUnit: document.getElementById("percentUnit"),
+      currentZone: document.getElementById("currentZone"),
+      maxHr: document.getElementById("maxHr"),
+      maxHrUnit: document.getElementById("maxHrUnit"),
+      avgSavedHr: document.getElementById("avgSavedHr"),
+      avgSavedHrUnit: document.getElementById("avgSavedHrUnit"),
+      maxSavedHr: document.getElementById("maxSavedHr"),
+      maxSavedHrUnit: document.getElementById("maxSavedHrUnit"),
+      savedSampleCount: document.getElementById("savedSampleCount"),
+      rowsLoggedTop: document.getElementById("rowsLoggedTop"),
+      graphArea: document.getElementById("graphArea"),
+      ageInput: document.getElementById("ageInput"),
+      ageMaxHr: document.getElementById("ageMaxHr"),
+      zoneList: document.getElementById("zoneList"),
+      recordingDot: document.getElementById("recordingDot"),
+      sessionNameInput: document.getElementById("sessionNameInput"),
+      fileNameInput: document.getElementById("fileNameInput"),
+      connectBtn: document.getElementById("connectBtn"),
+      saveToggleBtn: document.getElementById("saveToggleBtn"),
+      chooseFolderBtn: document.getElementById("chooseFolderBtn"),
+      saveCsvBtn: document.getElementById("saveCsvBtn"),
+      saveJsonBtn: document.getElementById("saveJsonBtn"),
+      clearDataBtn: document.getElementById("clearDataBtn"),
+      mockBtn: document.getElementById("mockBtn"),
+      folderText: document.getElementById("folderText"),
+      latestTimestampText: document.getElementById("latestTimestampText"),
+      analyzeCurrentBtn: document.getElementById("analyzeCurrentBtn"),
+      csvUploadInput: document.getElementById("csvUploadInput"),
+      exportAnalysisBtn: document.getElementById("exportAnalysisBtn"),
+      analysisStatus: document.getElementById("analysisStatus"),
+      analysisSummary: document.getElementById("analysisSummary"),
+      analysisTableArea: document.getElementById("analysisTableArea"),
+    };
+
+    function parseHeartRate(value) {
+      const flags = value.getUint8(0);
+      const isUint16 = flags & 0x01;
+      let index = 1;
+      const heartRate = isUint16 ? value.getUint16(index, true) : value.getUint8(index);
+      return { heartRate };
+    }
+
+    function getMaxHeartRate(age) {
+      const numericAge = Number(age);
+      if (!Number.isFinite(numericAge) || numericAge <= 0) return null;
+      return Math.round(220 - numericAge);
+    }
+
+    function getPercentMaxHr(bpm, maxHeartRate) {
+      if (!maxHeartRate || !bpm) return null;
+      return Number(((bpm / maxHeartRate) * 100).toFixed(1));
+    }
+
+    function getHeartRateZone(percentMaxHr) {
+      if (percentMaxHr === null || percentMaxHr === undefined || Number.isNaN(percentMaxHr)) return "Age not set";
+      if (percentMaxHr < 50) return "Low";
+      if (percentMaxHr < 60) return "Zone 1 (회복)";
+      if (percentMaxHr < 70) return "Zone 2 (지방 연소/저강도)";
+      if (percentMaxHr < 80) return "Zone 3 (유산소/중강도)";
+      if (percentMaxHr < 90) return "Zone 4 (역치/고강도)";
+      if (percentMaxHr <= 100) return "Zone 5 (최대 부하)";
+      return "Very High";
+    }
+
+    function showError(message) {
+      if (!message) {
+        els.errorBanner.style.display = "none";
+        els.errorBanner.textContent = "";
+        return;
+      }
+      els.errorBanner.textContent = message;
+      els.errorBanner.style.display = "block";
+    }
+
+    function makeRow(heartRate, now, elapsedSeconds) {
+      const maxHeartRate = getMaxHeartRate(state.age);
+      const percentMaxHr = getPercentMaxHr(heartRate, maxHeartRate);
+      return {
+        session_name: state.sessionName,
+        timestamp_iso: new Date(now).toISOString(),
+        elapsed_seconds: elapsedSeconds,
+        heart_rate_bpm: heartRate,
+        percent_max_hr: percentMaxHr,
+        heart_rate_zone: getHeartRateZone(percentMaxHr),
+      };
+    }
+
+    function updateZoneLegend() {
+      const maxHeartRate = getMaxHeartRate(state.age);
+      els.zoneList.innerHTML = ZONES.map((zone) => {
+        let bpmText = "";
+        if (maxHeartRate) {
+          const minBpm = Math.round((zone.min / 100) * maxHeartRate);
+          const maxBpm = Math.round((zone.max / 100) * maxHeartRate);
+          if (zone.label === "Low") bpmText = ` · <${Math.round(0.5 * maxHeartRate)} bpm`;
+          else if (zone.label === "Very High") bpmText = ` · >${maxHeartRate} bpm`;
+          else bpmText = ` · ${minBpm}-${maxBpm} bpm`;
+        }
+        return `
+          <div class="zone-row">
+            <span class="zone-swatch ${zone.className}"></span>
+            <div>
+              <strong>${zone.label}</strong>
+              <small>${zone.range}${bpmText}</small>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function renderGraph() {
+      const maxHeartRate = getMaxHeartRate(state.age);
+      const recentData = state.liveSamples
+        .filter((row) => row.percent_max_hr !== null && row.percent_max_hr !== undefined)
+        .slice(-180);
+
+      if (!maxHeartRate) {
+        els.graphArea.innerHTML = `
+          <div class="graph-placeholder">
+            <div class="fake-y-axis"></div>
+            <div class="fake-x-axis"></div>
+            <p>Enter age to calculate % max heart rate and show zones.</p>
+          </div>
+        `;
+        return;
+      }
+
+      if (recentData.length < 2) {
+        els.graphArea.innerHTML = `
+          <div class="graph-placeholder zone-bg-preview">
+            <div class="fake-y-axis"></div>
+            <div class="fake-x-axis"></div>
+            <p>Waiting for live heart-rate data...</p>
+          </div>
+        `;
+        return;
+      }
+
+      const width = 820;
+      const height = 560;
+      const paddingLeft = 96;
+      const paddingRight = 26;
+      const paddingTop = 8;
+      const paddingBottom = 58;
+      const plotWidth = width - paddingLeft - paddingRight;
+      const plotHeight = height - paddingTop - paddingBottom;
+      const percentSegments = [
+        { label: "Low", min: 20, max: 50, className: "band-low" },
+        { label: "Zone 1 (회복)", min: 50, max: 60, className: "band-zone-1" },
+        { label: "Zone 2 (지방 연소/저강도)", min: 60, max: 70, className: "band-zone-2" },
+        { label: "Zone 3 (유산소/중강도)", min: 70, max: 80, className: "band-zone-3" },
+        { label: "Zone 4 (역치/고강도)", min: 80, max: 90, className: "band-zone-4" },
+        { label: "Zone 5 (최대 부하)", min: 90, max: 100, className: "band-zone-5" },
+        { label: "Very High", min: 100, max: 120, className: "band-very-high" },
+      ];
+      const bandHeight = plotHeight / percentSegments.length;
+
+      function getY(percent) {
+        const clippedPercent = Math.max(20, Math.min(120, percent));
+        const segmentIndex = percentSegments.findIndex((segment, index) => {
+          const isLast = index === percentSegments.length - 1;
+          return isLast
+            ? clippedPercent >= segment.min && clippedPercent <= segment.max
+            : clippedPercent >= segment.min && clippedPercent < segment.max;
+        });
+        const safeIndex = segmentIndex === -1 ? 0 : segmentIndex;
+        const segment = percentSegments[safeIndex];
+        const localFraction = (clippedPercent - segment.min) / (segment.max - segment.min);
+        const visualPositionFromBottom = safeIndex + localFraction;
+        return paddingTop + (percentSegments.length - visualPositionFromBottom) * bandHeight;
+      }
+
+      const minTime = recentData[0].elapsed_seconds;
+      const maxTime = recentData[recentData.length - 1].elapsed_seconds;
+      const timeRange = Math.max(1, maxTime - minTime);
+      const getX = (row) => paddingLeft + ((row.elapsed_seconds - minTime) / timeRange) * plotWidth;
+      const points = recentData.map((row) => `${getX(row)},${getY(row.percent_max_hr)}`).join(" ");
+      const latest = recentData[recentData.length - 1];
+
+      const bands = percentSegments.map((segment, index) => {
+        const y = paddingTop + (percentSegments.length - index - 1) * bandHeight;
+        return `<rect x="${paddingLeft}" y="${y}" width="${plotWidth}" height="${bandHeight}" class="${segment.className}" />`;
+      }).join("");
+
+      const ticks = [20, 50, 60, 70, 80, 90, 100, 120].map((tick) => `
+        <g>
+          <line x1="${paddingLeft}" y1="${getY(tick)}" x2="${width - paddingRight}" y2="${getY(tick)}" class="graph-grid" />
+          <text x="34" y="${getY(tick) + 5}" class="graph-label">${tick}%</text>
+        </g>
+      `).join("");
+
+      els.graphArea.innerHTML = `
+        <div class="graph-shell">
+          <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Percent max heart rate over time graph with equal-height zone bands">
+            <rect x="0" y="0" width="${width}" height="${height}" class="graph-bg" />
+            ${bands}
+            ${ticks}
+            <line x1="${paddingLeft}" y1="${paddingTop}" x2="${paddingLeft}" y2="${height - paddingBottom}" class="graph-axis" />
+            <line x1="${paddingLeft}" y1="${height - paddingBottom}" x2="${width - paddingRight}" y2="${height - paddingBottom}" class="graph-axis" />
+            <text x="${paddingLeft}" y="${height - 30}" class="graph-label">${minTime.toFixed(0)}s</text>
+            <text x="${width - paddingRight - 44}" y="${height - 30}" class="graph-label">${maxTime.toFixed(0)}s</text>
+            <text x="${width / 2 - 32}" y="${height - 10}" class="graph-axis-title">Time (s)</text>
+            <text x="16" y="${height / 2 + 36}" class="graph-axis-title" transform="rotate(-90 16 ${height / 2 + 36})">%HR Max</text>
+            <polyline points="${points}" class="heart-line" />
+            <circle cx="${getX(latest)}" cy="${getY(latest.percent_max_hr)}" r="6" class="heart-dot" />
+          </svg>
+        </div>
+      `;
+    }
+
+    function renderMetrics() {
+      const maxHeartRate = getMaxHeartRate(state.age);
+      const currentPercent = getPercentMaxHr(state.heartRate, maxHeartRate);
+      const currentZone = getHeartRateZone(currentPercent);
+      const savedHrValues = state.savedSamples.map((row) => row.heart_rate_bpm);
+      const avgSaved = savedHrValues.length
+        ? Math.round(savedHrValues.reduce((sum, value) => sum + value, 0) / savedHrValues.length)
+        : null;
+      const maxSaved = savedHrValues.length ? Math.max(...savedHrValues) : null;
+
+      els.connectionPill.textContent = state.isStreaming ? "Connected" : "Not connected";
+      els.connectionPill.classList.toggle("connected", state.isStreaming);
+      els.liveHr.textContent = state.heartRate ?? "--";
+      els.recordingSubtext.textContent = state.isSaving ? "Recording" : "Not recording";
+      els.percentHr.textContent = currentPercent ?? "--";
+      els.percentUnit.textContent = currentPercent ? " %" : "";
+      els.currentZone.textContent = currentZone;
+      els.maxHr.textContent = maxHeartRate ?? "--";
+      els.maxHrUnit.textContent = maxHeartRate ? " bpm" : "";
+      els.ageMaxHr.textContent = maxHeartRate ?? "--";
+      els.avgSavedHr.textContent = avgSaved ?? "--";
+      els.avgSavedHrUnit.textContent = avgSaved ? " bpm" : "";
+      els.maxSavedHr.textContent = maxSaved ?? "--";
+      els.maxSavedHrUnit.textContent = maxSaved ? " bpm" : "";
+      els.savedSampleCount.textContent = state.savedSamples.length;
+      els.rowsLoggedTop.textContent = `${state.savedSamples.length} rows logged`;
+      els.recordingDot.textContent = state.isSaving ? "Recording" : "Idle";
+      els.recordingDot.classList.toggle("active", state.isSaving);
+      els.connectBtn.textContent = state.isStreaming ? "Disconnect" : "Connect sensor";
+      els.connectBtn.className = state.isStreaming ? "btn secondary" : "btn primary";
+      els.saveToggleBtn.disabled = !state.isStreaming;
+      els.saveToggleBtn.textContent = state.isSaving ? "Stop CSV logging" : "Start CSV logging";
+      els.saveToggleBtn.className = state.isSaving ? "btn danger" : "btn success";
+      els.saveCsvBtn.disabled = !state.savedSamples.length;
+      els.saveJsonBtn.disabled = !state.savedSamples.length;
+      els.clearDataBtn.disabled = !state.savedSamples.length;
+      els.analyzeCurrentBtn.disabled = !state.savedSamples.length;
+      els.mockBtn.textContent = state.mockInterval ? "Stop mock" : "Mock stream";
+      els.folderText.textContent = state.saveFolderName
+        ? `Selected save folder: ${state.saveFolderName}`
+        : "No folder selected. Save CSV/JSON will use the browser download flow.";
+      const latest = state.savedSamples[state.savedSamples.length - 1];
+      els.latestTimestampText.textContent = `Latest saved timestamp: ${latest?.timestamp_iso || "--"}`;
+      updateZoneLegend();
+      renderGraph();
+    }
+
+    function toCsv(rows) {
+      const headers = ["session_name", "timestamp_iso", "elapsed_seconds", "heart_rate_bpm", "percent_max_hr", "heart_rate_zone"];
+      const escape = (value) => {
+        if (value === null || value === undefined) return "";
+        const text = String(value);
+        return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+      };
+      return [headers.join(","), ...rows.map((row) => headers.map((header) => escape(row[header])).join(","))].join("\n");
+    }
+
+    function downloadText(filename, text, mimeType = "text/plain") {
+      const blob = new Blob([text], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    async function saveTextToFolder(directoryHandle, filename, text) {
+      const fileHandle = await directoryHandle.getFileHandle(filename, { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(text);
+      await writable.close();
+    }
+
+    function cleanFileName(name, extension) {
+      const cleaned = (name || "polar-verity-heart-rate")
+        .trim()
+        .replace(/[\\/:*?"<>|]/g, "-")
+        .replace(/\s+/g, "-");
+      return cleaned.toLowerCase().endsWith(extension) ? cleaned : `${cleaned}${extension}`;
+    }
+
+    async function connect() {
+      showError("");
+      if (state.isStreaming) {
+        await disconnect();
+        return;
+      }
+      if (!("bluetooth" in navigator)) {
+        showError("Web Bluetooth is not available in this browser. Try Chrome or Edge over HTTPS.");
+        return;
+      }
+      try {
+        stopMock(false);
+        const device = await navigator.bluetooth.requestDevice({
+          filters: [{ services: [HEART_RATE_SERVICE] }],
+          optionalServices: [BATTERY_SERVICE],
+        });
+        state.device = device;
+        state.deviceName = device.name || "Polar heart rate sensor";
+        device.addEventListener("gattserverdisconnected", () => {
+          state.isStreaming = false;
+          state.isSaving = false;
+          renderMetrics();
+        });
+        const server = await device.gatt.connect();
+        const hrService = await server.getPrimaryService(HEART_RATE_SERVICE);
+        const hrCharacteristic = await hrService.getCharacteristic(HEART_RATE_MEASUREMENT);
+        state.characteristic = hrCharacteristic;
+        try {
+          const batteryService = await server.getPrimaryService(BATTERY_SERVICE);
+          const batteryCharacteristic = await batteryService.getCharacteristic(BATTERY_LEVEL);
+          const batteryValue = await batteryCharacteristic.readValue();
+          state.battery = batteryValue.getUint8(0);
+        } catch {}
+        await hrCharacteristic.startNotifications();
+        hrCharacteristic.addEventListener("characteristicvaluechanged", handleHeartRate);
+        state.streamStartTime = Date.now();
+        state.liveSamples = [];
+        state.isStreaming = true;
+        renderMetrics();
+      } catch (err) {
+        showError(err?.message || "Unable to connect to device.");
+      }
+    }
+
+    async function disconnect() {
+      if (state.mockInterval) {
+        stopMock(true);
+        return;
+      }
+      try {
+        if (state.characteristic) {
+          state.characteristic.removeEventListener("characteristicvaluechanged", handleHeartRate);
+          await state.characteristic.stopNotifications();
+        }
+        if (state.device?.gatt?.connected) {
+          state.device.gatt.disconnect();
+        }
+      } catch (err) {
+        console.error(err);
+      }
+      state.isStreaming = false;
+      state.isSaving = false;
+      renderMetrics();
+    }
+
+    function handleHeartRate(event) {
+      const parsed = parseHeartRate(event.target.value);
+      addHeartRateSample(parsed.heartRate);
+    }
+
+    function addHeartRateSample(heartRate) {
+      const now = Date.now();
+      if (!state.streamStartTime) state.streamStartTime = now;
+      const liveElapsed = Number(((now - state.streamStartTime) / 1000).toFixed(3));
+      const liveRow = makeRow(heartRate, now, liveElapsed);
+      state.heartRate = heartRate;
+      state.liveSamples = [...state.liveSamples.slice(-899), liveRow];
+      if (state.isSaving) {
+        if (!state.saveStartTime) state.saveStartTime = now;
+        const savedElapsed = Number(((now - state.saveStartTime) / 1000).toFixed(3));
+        state.savedSamples.push(makeRow(heartRate, now, savedElapsed));
+      }
+      renderMetrics();
+    }
+
+    function toggleSaving() {
+      if (!state.isStreaming) return;
+      if (!state.isSaving) {
+        state.savedSamples = [];
+        state.saveStartTime = Date.now();
+        state.isSaving = true;
+      } else {
+        state.isSaving = false;
+      }
+      renderMetrics();
+    }
+
+    async function chooseSaveFolder() {
+      showError("");
+      if (!("showDirectoryPicker" in window)) {
+        showError("Folder selection is not available in this browser. CSV/JSON will use the browser download flow instead.");
+        return;
+      }
+      try {
+        const directoryHandle = await window.showDirectoryPicker({ mode: "readwrite" });
+        state.directoryHandle = directoryHandle;
+        state.saveFolderName = directoryHandle.name || "Selected folder";
+        renderMetrics();
+      } catch (err) {
+        if (err?.name !== "AbortError") showError(err?.message || "Unable to select save folder.");
+      }
+    }
+
+    async function exportCsv() {
+      const filename = cleanFileName(state.fileName, ".csv");
+      const text = toCsv(state.savedSamples);
+      try {
+        if (state.directoryHandle) await saveTextToFolder(state.directoryHandle, filename, text);
+        else downloadText(filename, text, "text/csv;charset=utf-8");
+      } catch (err) {
+        showError(err?.message || "Unable to save CSV. Falling back to browser download.");
+        downloadText(filename, text, "text/csv;charset=utf-8");
+      }
+    }
+
+    async function exportJson() {
+      const filename = cleanFileName(state.fileName, ".json");
+      const text = JSON.stringify(state.savedSamples, null, 2);
+      try {
+        if (state.directoryHandle) await saveTextToFolder(state.directoryHandle, filename, text);
+        else downloadText(filename, text, "application/json");
+      } catch (err) {
+        showError(err?.message || "Unable to save JSON. Falling back to browser download.");
+        downloadText(filename, text, "application/json");
+      }
+    }
+
+    function clearData() {
+      state.savedSamples = [];
+      state.isSaving = false;
+      state.saveStartTime = null;
+      renderMetrics();
+    }
+
+    function startMock() {
+      if (state.isStreaming) return;
+      state.isStreaming = true;
+      state.deviceName = "Mock Polar Verity Sense";
+      state.liveSamples = [];
+      state.streamStartTime = Date.now();
+      let t = 0;
+      state.mockInterval = window.setInterval(() => {
+        t += 1;
+        const mockHr = Math.round(82 + 18 * Math.sin(t / 14) + 12 * Math.sin(t / 34) + Math.random() * 4);
+        addHeartRateSample(mockHr);
+      }, 1000);
+      renderMetrics();
+    }
+
+    function stopMock(resetUi = true) {
+      if (state.mockInterval) {
+        clearInterval(state.mockInterval);
+        state.mockInterval = null;
+        if (resetUi) {
+          state.isStreaming = false;
+          state.isSaving = false;
+          state.deviceName = "";
+          renderMetrics();
+        }
+      }
+    }
+
+    function parseCsv(text) {
+      const rows = [];
+      let current = [];
+      let value = "";
+      let insideQuotes = false;
+      for (let i = 0; i < text.length; i += 1) {
+        const char = text[i];
+        const next = text[i + 1];
+        if (char === '"' && insideQuotes && next === '"') {
+          value += '"';
+          i += 1;
+        } else if (char === '"') {
+          insideQuotes = !insideQuotes;
+        } else if (char === "," && !insideQuotes) {
+          current.push(value);
+          value = "";
+        } else if ((char === "\n" || char === "\r") && !insideQuotes) {
+          if (char === "\r" && next === "\n") i += 1;
+          current.push(value);
+          if (current.some((cell) => cell.trim() !== "")) rows.push(current);
+          current = [];
+          value = "";
+        } else {
+          value += char;
+        }
+      }
+      current.push(value);
+      if (current.some((cell) => cell.trim() !== "")) rows.push(current);
+      if (rows.length < 2) return [];
+      const headers = rows[0].map((header) => header.trim());
+      return rows.slice(1).map((row) => {
+        const object = {};
+        headers.forEach((header, index) => object[header] = row[index] ?? "");
+        return object;
+      });
+    }
+
+    function normalizeAnalysisRows(rows) {
+      return rows.map((row) => {
+        const elapsed = Number(row.elapsed_seconds);
+        const bpm = Number(row.heart_rate_bpm);
+        const percent = Number(row.percent_max_hr);
+        if (!Number.isFinite(elapsed) || !Number.isFinite(bpm) || !Number.isFinite(percent)) return null;
+        return { elapsed_seconds: elapsed, heart_rate_bpm: bpm, percent_max_hr: percent, heart_rate_zone: row.heart_rate_zone || getHeartRateZone(percent) };
+      }).filter(Boolean).sort((a, b) => a.elapsed_seconds - b.elapsed_seconds);
+    }
+
+    function calculateZoneAnalysis(rows) {
+      const normalized = normalizeAnalysisRows(rows);
+      const initial = ZONES.map((zone) => ({
+        zone: zone.label,
+        range: zone.range,
+        className: zone.className,
+        time_seconds: 0,
+        percent_time: 0,
+        avg_bpm: null,
+        avg_percent_max_hr: null,
+        max_bpm: null,
+        max_percent_max_hr: null,
+        samples: 0,
+        bpmValues: [],
+        percentValues: [],
+      }));
+      if (!normalized.length) return { rows: initial, totalTime: 0, sampleCount: 0 };
+      const zoneMap = new Map(initial.map((row) => [row.zone, row]));
+      for (let i = 0; i < normalized.length; i += 1) {
+        const sample = normalized[i];
+        const next = normalized[i + 1];
+        const previous = normalized[i - 1];
+        let duration = 0;
+        if (next) duration = next.elapsed_seconds - sample.elapsed_seconds;
+        else if (previous) duration = sample.elapsed_seconds - previous.elapsed_seconds;
+        if (!Number.isFinite(duration) || duration < 0) duration = 0;
+        if (duration > 10) duration = 10;
+        const zoneRow = zoneMap.get(getHeartRateZone(sample.percent_max_hr));
+        if (!zoneRow) continue;
+        zoneRow.time_seconds += duration;
+        zoneRow.samples += 1;
+        zoneRow.bpmValues.push(sample.heart_rate_bpm);
+        zoneRow.percentValues.push(sample.percent_max_hr);
+      }
+      const totalTime = initial.reduce((sum, row) => sum + row.time_seconds, 0);
+      const formatted = initial.map((row) => {
+        const bpmSum = row.bpmValues.reduce((sum, value) => sum + value, 0);
+        const percentSum = row.percentValues.reduce((sum, value) => sum + value, 0);
+        return {
+          zone: row.zone,
+          range: row.range,
+          className: row.className,
+          time_seconds: Number(row.time_seconds.toFixed(1)),
+          percent_time: totalTime > 0 ? Number(((row.time_seconds / totalTime) * 100).toFixed(1)) : 0,
+          avg_bpm: row.samples ? Math.round(bpmSum / row.samples) : null,
+          avg_percent_max_hr: row.samples ? Number((percentSum / row.samples).toFixed(1)) : null,
+          max_bpm: row.samples ? Math.max(...row.bpmValues) : null,
+          max_percent_max_hr: row.samples ? Number(Math.max(...row.percentValues).toFixed(1)) : null,
+          samples: row.samples,
+        };
+      });
+      return { rows: formatted, totalTime: Number(totalTime.toFixed(1)), sampleCount: normalized.length };
+    }
+
+    function renderAnalysis() {
+      const analysis = state.analysis;
+      if (!analysis) {
+        els.analysisStatus.textContent = "No analysis";
+        els.exportAnalysisBtn.disabled = true;
+        els.analysisSummary.style.display = "none";
+        els.analysisTableArea.className = "analysis-empty";
+        els.analysisTableArea.innerHTML = "Analyze the current saved session or upload a saved CSV file to view zone summaries.";
+        return;
+      }
+      els.analysisStatus.textContent = `${analysis.sampleCount} analyzed`;
+      els.exportAnalysisBtn.disabled = false;
+      els.analysisSummary.style.display = "flex";
+      els.analysisSummary.innerHTML = `<span>Source: ${state.analysisSource}</span><span>Total analyzed time: ${analysis.totalTime.toFixed(1)} s</span>`;
+      els.analysisTableArea.className = "analysis-table-wrap";
+      els.analysisTableArea.innerHTML = `
+        <table class="analysis-table">
+          <thead>
+            <tr>
+              <th>Zone</th>
+              <th>Time</th>
+              <th>% Time</th>
+              <th>Avg HR</th>
+              <th>Avg %HR Max</th>
+              <th>Max HR</th>
+              <th>Max %HR Max</th>
+              <th>Samples</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${analysis.rows.map((row) => `
+              <tr>
+                <td>
+                  <span class="zone-name-cell">
+                    <span class="zone-swatch ${row.className}"></span>
+                    <span><strong>${row.zone}</strong><small>${row.range}</small></span>
+                  </span>
+                </td>
+                <td>${row.time_seconds.toFixed(1)} s</td>
+                <td>${row.percent_time.toFixed(1)}%</td>
+                <td>${row.avg_bpm === null ? "--" : `${row.avg_bpm} bpm`}</td>
+                <td>${row.avg_percent_max_hr === null ? "--" : `${row.avg_percent_max_hr}%`}</td>
+                <td>${row.max_bpm === null ? "--" : `${row.max_bpm} bpm`}</td>
+                <td>${row.max_percent_max_hr === null ? "--" : `${row.max_percent_max_hr}%`}</td>
+                <td>${row.samples}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      `;
+    }
+
+    function analyzeCurrentSession() {
+      if (!state.savedSamples.length) {
+        showError("No saved data to analyze. Click Start CSV logging, collect data, then Stop CSV logging first.");
+        return;
+      }
+      showError("");
+      state.analysis = calculateZoneAnalysis(state.savedSamples);
+      state.analysisSource = "Current saved session";
+      renderAnalysis();
+    }
+
+    async function analyzeUploadedCsv(event) {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const parsedRows = parseCsv(text);
+        const result = calculateZoneAnalysis(parsedRows);
+        if (result.sampleCount === 0) {
+          showError("The uploaded CSV could not be analyzed. Make sure it includes elapsed_seconds, heart_rate_bpm, percent_max_hr, and heart_rate_zone columns.");
+          return;
+        }
+        showError("");
+        state.analysis = result;
+        state.analysisSource = file.name;
+        renderAnalysis();
+      } catch (err) {
+        showError(err?.message || "Unable to analyze uploaded CSV file.");
+      } finally {
+        event.target.value = "";
+      }
+    }
+
+    function exportAnalysisCsv() {
+      if (!state.analysis) return;
+      const headers = ["zone", "range", "time_seconds", "percent_time", "avg_bpm", "avg_percent_max_hr", "max_bpm", "max_percent_max_hr", "samples"];
+      const rows = state.analysis.rows.map((row) => headers.map((header) => row[header] ?? "").join(","));
+      const csv = [headers.join(","), ...rows].join("\n");
+      const safeName = cleanFileName(`${state.fileName}-zone-analysis`, ".csv");
+      downloadText(safeName, csv, "text/csv;charset=utf-8");
+    }
+
+    els.ageInput.addEventListener("input", (event) => { state.age = event.target.value; renderMetrics(); });
+    els.sessionNameInput.addEventListener("input", (event) => { state.sessionName = event.target.value; });
+    els.fileNameInput.addEventListener("input", (event) => { state.fileName = event.target.value; });
+    els.connectBtn.addEventListener("click", connect);
+    els.saveToggleBtn.addEventListener("click", toggleSaving);
+    els.chooseFolderBtn.addEventListener("click", chooseSaveFolder);
+    els.saveCsvBtn.addEventListener("click", exportCsv);
+    els.saveJsonBtn.addEventListener("click", exportJson);
+    els.clearDataBtn.addEventListener("click", clearData);
+    els.mockBtn.addEventListener("click", () => state.mockInterval ? stopMock(true) : startMock());
+    els.analyzeCurrentBtn.addEventListener("click", analyzeCurrentSession);
+    els.csvUploadInput.addEventListener("change", analyzeUploadedCsv);
+    els.exportAnalysisBtn.addEventListener("click", exportAnalysisCsv);
+
+    els.fileNameInput.value = state.fileName;
+    updateZoneLegend();
+    renderMetrics();
+    renderAnalysis();
+  </script>
+</body>
+</html>
