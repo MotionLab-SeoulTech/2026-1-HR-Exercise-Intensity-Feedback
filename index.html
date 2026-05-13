@@ -678,8 +678,9 @@
           <div class="metric-value"><span id="maxSavedHr">--</span><span id="maxSavedHrUnit" class="metric-unit"></span></div>
         </div>
         <div class="metric-card">
-          <div class="metric-label">Saved samples</div>
-          <div id="savedSampleCount" class="metric-value">0</div>
+          <div class="metric-label">Battery</div>
+          <div class="metric-value"><span id="batteryValue">--</span><span id="batteryUnit" class="metric-unit"></span></div>
+          <div class="metric-subtext">Polar sensor</div>
         </div>
       </section>
 
@@ -824,7 +825,8 @@
       avgSavedHrUnit: document.getElementById("avgSavedHrUnit"),
       maxSavedHr: document.getElementById("maxSavedHr"),
       maxSavedHrUnit: document.getElementById("maxSavedHrUnit"),
-      savedSampleCount: document.getElementById("savedSampleCount"),
+      batteryValue: document.getElementById("batteryValue"),
+      batteryUnit: document.getElementById("batteryUnit"),
       rowsLoggedTop: document.getElementById("rowsLoggedTop"),
       graphArea: document.getElementById("graphArea"),
       ageInput: document.getElementById("ageInput"),
@@ -1050,7 +1052,8 @@
       els.avgSavedHrUnit.textContent = avgSaved ? " bpm" : "";
       els.maxSavedHr.textContent = maxSaved ?? "--";
       els.maxSavedHrUnit.textContent = maxSaved ? " bpm" : "";
-      els.savedSampleCount.textContent = state.savedSamples.length;
+      els.batteryValue.textContent = state.battery === null ? "--" : state.battery;
+      els.batteryUnit.textContent = state.battery === null ? "" : " %";
       els.rowsLoggedTop.textContent = `${state.savedSamples.length} rows logged`;
       els.recordingDot.textContent = state.isSaving ? "Recording" : "Idle";
       els.recordingDot.classList.toggle("active", state.isSaving);
